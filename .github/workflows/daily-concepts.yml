@@ -42,7 +42,7 @@ jobs:
       
       - name: Upload history as artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: concepts-history
           path: concepts_history.yaml
