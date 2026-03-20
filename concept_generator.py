@@ -36,104 +36,6 @@ THEMES = {
     6: "Time & Rituals",          # Sunday
 }
 
-# Concept pools for each theme
-CONCEPT_POOLS = {
-    "Digital/Consumer Apps": [
-        "Email inbox organization",
-        "Search result ranking",
-        "Social media feeds",
-        "Chat notifications",
-        "Password management",
-        "Calendar blocking",
-        "Note-taking apps",
-        "Code collaboration tools",
-        "Video conferencing UI",
-        "Shopping cart experience",
-        "Read-it-later apps",
-        "Task management dashboards",
-    ],
-    "Physical Products": [
-        "The keyboard layout (QWERTY)",
-        "Door handles and hinges",
-        "Staircase design",
-        "Light switches",
-        "The coffee cup",
-        "Pen and paper",
-        "The shopping cart",
-        "Doorbell mechanics",
-        "Toilet paper orientation",
-        "The zipper",
-        "Bookmark ribbons",
-        "Mailbox design",
-    ],
-    "Social/Institutional Systems": [
-        "The resume format",
-        "Meeting agendas",
-        "Grade letter systems",
-        "The job interview",
-        "Email etiquette",
-        "Commit messages",
-        "Pull request reviews",
-        "Office hours",
-        "The handshake",
-        "Waiting in lines",
-        "The calendar invite",
-        "Feedback forms",
-    ],
-    "Behavioral Patterns": [
-        "How we multitask",
-        "Decision fatigue in apps",
-        "Context switching costs",
-        "The inbox zero myth",
-        "Meeting culture",
-        "Procrastination triggers",
-        "Learning by rote",
-        "Documentation reading",
-        "Onboarding flows",
-        "Exit surveys",
-        "The standing ovation",
-        "Seating arrangements",
-    ],
-    "Wildcard": [
-        "Naming conventions in code",
-        "Error messages",
-        "FAQs as a concept",
-        "The README file",
-        "Credit card layouts",
-        "Airport security lines",
-        "Library card systems",
-        "The resume (again, because it's so weird)",
-        "How we measure time",
-        "Tipping culture",
-        "The license plate format",
-        "Bug reporting templates",
-    ],
-    "Cultural Concepts": [
-        "Holiday traditions",
-        "Small talk conventions",
-        "Gift-giving rituals",
-        "The concept of privacy",
-        "Personal space bubbles",
-        "Eye contact norms",
-        "Punctuality expectations",
-        "The concept of 'busy'",
-        "Status symbols",
-        "Apology scripts",
-    ],
-    "Time & Rituals": [
-        "The 9-to-5 workday",
-        "Weekly planning",
-        "The standup meeting",
-        "Break time culture",
-        "Commute routines",
-        "Sleep schedules",
-        "Meal times",
-        "The weekend concept",
-        "Annual reviews",
-        "The sprint cycle",
-    ],
-}
-
 # ============================================================================
 # HISTORY MANAGEMENT
 # ============================================================================
@@ -156,18 +58,36 @@ def get_covered_concepts():
     history = load_history()
     return {c["concept"] for c in history.get("concepts", [])}
 
-def pick_concept(theme):
-    """Pick a concept from the theme pool that hasn't been covered."""
+def generate_concept(theme, api_key):
+    """Have Claude generate a fresh, novel concept for the given theme."""
     covered = get_covered_concepts()
-    pool = CONCEPT_POOLS.get(theme, CONCEPT_POOLS["Wildcard"])
-    available = [c for c in pool if c not in covered]
+    covered_list = ", ".join(sorted(covered)) if covered else "None yet"
     
-    if not available:
-        # Reset pool if all exhausted
-        print(f"[INFO] All concepts in '{theme}' exhausted. Resetting pool.")
-        available = pool
+    client = anthropic.Anthropic(api_key=api_key)
     
-    return random.choice(available)
+    prompt = f"""You are a creative design thinker. Generate ONE fresh, interesting concept to rethink for the theme: "{theme}"
+
+CONSTRAINTS:
+- Pick something specific and concrete (not too abstract)
+- It should be something people use/experience in everyday life
+- Should be something that hasn't been questioned much
+- AVOID these already-covered concepts: {covered_list}
+
+RESPOND WITH ONLY THE CONCEPT NAME, nothing else. Just the name, no explanation.
+Examples of good responses: "The coffee cup", "Email signatures", "Handshakes", "Status messages"
+
+Generate a new concept now:"""
+    
+    message = client.messages.create(
+        model="claude-sonnet-4-20250514",
+        max_tokens=100,
+        messages=[
+            {"role": "user", "content": prompt}
+        ]
+    )
+    
+    concept = message.content[0].text.strip()
+    return concept
 
 def add_to_history(concept, theme, analysis, redesign):
     """Add new concept analysis to history."""
@@ -429,13 +349,15 @@ def run_daily_generation():
         print("[ERROR] ANTHROPIC_API_KEY not set. Exiting.")
         return False
     
-    # Pick theme and concept
+    # Pick theme and generate a novel concept
     theme = get_todays_theme()
-    concept = pick_concept(theme)
-    print(f"[INFO] Theme: {theme} | Concept: {concept}")
+    print(f"[INFO] Theme: {theme}")
+    print("[INFO] Generating a novel concept...")
+    concept = generate_concept(theme, API_KEY)
+    print(f"[INFO] Generated concept: {concept}")
     
     # Generate analysis
-    print("[INFO] Calling Claude API...")
+    print("[INFO] Calling Claude API for analysis...")
     analysis = generate_concept_analysis(concept, theme)
     
     # Save to history
