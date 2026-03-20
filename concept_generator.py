@@ -218,7 +218,7 @@ Format your response as:
 """
     
     message = client.messages.create(
-        model="claude-opus-4-20250805",
+        model="claude-sonnet-4-20250514",
         max_tokens=1200,
         messages=[
             {"role": "user", "content": prompt}
