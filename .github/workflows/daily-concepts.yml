@@ -1,0 +1,49 @@
+name: Daily Concept Generator
+
+on:
+  schedule:
+    # Runs every day at 7 AM UTC
+    # To change time, modify the cron expression below
+    # Format: minute hour day month day-of-week
+    # Examples:
+    #   0 7 * * *   = 7 AM UTC daily
+    #   0 9 * * *   = 9 AM UTC daily
+    #   0 12 * * *  = 12 PM (noon) UTC daily
+    - cron: '0 7 * * *'
+  
+  # Allow manual trigger for testing
+  workflow_dispatch:
+
+jobs:
+  generate-concept:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Run concept generator
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
+        run: python concept_generator.py
+      
+      - name: Upload history as artifact
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: concepts-history
+          path: concepts_history.yaml
+          retention-days: 90
