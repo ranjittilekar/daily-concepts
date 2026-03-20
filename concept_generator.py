@@ -218,7 +218,7 @@ Format your response as:
 """
     
     message = client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-opus-4-20250805",
         max_tokens=1200,
         messages=[
             {"role": "user", "content": prompt}
@@ -254,13 +254,19 @@ def parse_analysis(text):
 # EMAIL GENERATION & SENDING
 # ============================================================================
 
-def get_history_summary():
-    """Get a summary of past concepts."""
+# ============================================================================
+# EMAIL GENERATION & SENDING
+# ============================================================================
+
+def get_history_html():
+    """Generate HTML for history summary with stats."""
     history = load_history()
     concepts = history.get("concepts", [])
     
     if not concepts:
-        return "No concepts analyzed yet. You're on the ground floor!"
+        return f"""
+        <p style="color: #666; font-style: italic;">No concepts yet. You're on the ground floor! 🚀</p>
+        """
     
     total = len(concepts)
     themes_covered = {}
@@ -268,64 +274,117 @@ def get_history_summary():
         theme = c.get("theme", "Unknown")
         themes_covered[theme] = themes_covered.get(theme, 0) + 1
     
-    summary = f"Total concepts explored: {total}\n"
-    for theme, count in sorted(themes_covered.items()):
-        summary += f"  • {theme}: {count}\n"
-    
     recent = concepts[-3:]
-    summary += "\nRecent concepts:\n"
-    for c in recent:
-        date_str = datetime.fromisoformat(c["date"]).strftime("%Y-%m-%d")
-        summary += f"  • {c['concept']} ({date_str})\n"
     
-    return summary
+    theme_html = "".join([
+        f'<li style="margin: 8px 0; color: #555;"><strong>{theme}:</strong> {count} concepts</li>'
+        for theme, count in sorted(themes_covered.items())
+    ])
+    
+    recent_html = "".join([
+        f'<li style="margin: 8px 0; color: #555;">{c["concept"]} <span style="color: #999; font-size: 0.9em;">({datetime.fromisoformat(c["date"]).strftime("%b %d")})</span></li>'
+        for c in recent
+    ])
+    
+    return f"""
+    <div style="background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); padding: 20px; border-radius: 12px; margin-top: 20px;">
+        <h3 style="margin: 0 0 15px 0; color: #2c3e50; font-size: 16px;">📊 Your Exploration Journey</h3>
+        <p style="margin: 0 0 12px 0; color: #2c3e50; font-weight: bold; font-size: 18px;">{total} concepts explored</p>
+        <ul style="list-style: none; padding: 0; margin: 12px 0 0 0;">
+            {theme_html}
+        </ul>
+        <p style="margin: 15px 0 8px 0; color: #2c3e50; font-weight: 600; font-size: 13px;">Recent:</p>
+        <ul style="list-style: none; padding: 0; margin: 0;">
+            {recent_html}
+        </ul>
+    </div>
+    """
 
 def format_email_body(concept, theme, analysis):
-    """Format the email body with design-doc + playful tone."""
+    """Format the email body as vibrant, playful HTML."""
     parsed = parse_analysis(analysis)
-    history_summary = get_history_summary()
+    history_html = get_history_html()
+    
+    date_str = datetime.now().strftime('%A, %B %d, %Y')
     
     body = f"""
-╔════════════════════════════════════════════════════════════════╗
-║          TODAY'S CONCEPT RETHINK                               ║
-╚════════════════════════════════════════════════════════════════╝
-
-Date: {datetime.now().strftime('%A, %B %d, %Y')}
-Theme: {theme}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-CONCEPT: {concept}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-WHAT'S ACTUALLY WEIRD ABOUT IT:
-
-{parsed['problems']}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-HERE'S A BETTER WAY:
-
-{parsed['redesign']}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-THE VIBE:
-"{parsed['tagline']}"
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-YOUR EXPLORATION SO FAR:
-
-{history_summary}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-See you tomorrow for a fresh concept.
-
-- Your Daily Design Muse 🧠✨
-"""
+    <html>
+    <head>
+        <style>
+            body {{ font-family: 'Segoe UI', 'Helvetica Neue', sans-serif; color: #333; line-height: 1.6; }}
+            a {{ color: #6366f1; text-decoration: none; }}
+        </style>
+    </head>
+    <body style="font-family: 'Segoe UI', 'Helvetica Neue', sans-serif; color: #333; margin: 0; padding: 0; background-color: #fafbfc;">
+        
+        <!-- Container -->
+        <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+            
+            <!-- Header -->
+            <div style="text-align: center; margin-bottom: 30px;">
+                <h1 style="margin: 0 0 10px 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-size: 32px; font-weight: 700;">
+                    Daily Rethink 🧠
+                </h1>
+                <p style="margin: 0; color: #999; font-size: 13px; letter-spacing: 1px;">A Fresh Concept Every Day</p>
+            </div>
+            
+            <!-- Date & Theme -->
+            <div style="text-align: center; margin-bottom: 30px; padding: 15px; background: #f0f4ff; border-radius: 10px;">
+                <p style="margin: 0; color: #667eea; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">{date_str}</p>
+                <p style="margin: 8px 0 0 0; color: #764ba2; font-size: 14px; font-weight: 500;">Theme: <strong>{theme}</strong></p>
+            </div>
+            
+            <!-- Concept Card -->
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; border-radius: 15px; margin-bottom: 25px; color: white; text-align: center;">
+                <p style="margin: 0 0 10px 0; font-size: 12px; text-transform: uppercase; letter-spacing: 2px; opacity: 0.9;">Today's Concept</p>
+                <h2 style="margin: 0; font-size: 28px; font-weight: 700; line-height: 1.2;">{concept}</h2>
+            </div>
+            
+            <!-- Problems Section -->
+            <div style="margin-bottom: 25px;">
+                <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 2px; border-radius: 12px; margin-bottom: 15px;">
+                    <div style="background: white; padding: 20px; border-radius: 10px;">
+                        <h3 style="margin: 0 0 15px 0; color: #f5576c; font-size: 18px; font-weight: 700;">🤔 What's Actually Weird About It?</h3>
+                        <div style="color: #555; font-size: 15px; line-height: 1.7;">
+                            {parsed['problems'].replace(chr(10), '<br>')}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Redesign Section -->
+            <div style="margin-bottom: 25px;">
+                <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); padding: 2px; border-radius: 12px; margin-bottom: 15px;">
+                    <div style="background: white; padding: 20px; border-radius: 10px;">
+                        <h3 style="margin: 0 0 15px 0; color: #00f2fe; font-size: 18px; font-weight: 700;">✨ Here's a Better Way</h3>
+                        <div style="color: #555; font-size: 15px; line-height: 1.7;">
+                            {parsed['redesign'].replace(chr(10), '<br>')}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tagline Section -->
+            <div style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 25px;">
+                <p style="margin: 0; color: #fff; font-size: 16px; font-weight: 600; font-style: italic;">
+                    "{parsed['tagline']}"
+                </p>
+            </div>
+            
+            <!-- History Section -->
+            {history_html}
+            
+            <!-- Footer -->
+            <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
+                <p style="margin: 0 0 10px 0; color: #999; font-size: 13px;">See you tomorrow for a fresh concept</p>
+                <p style="margin: 0; color: #bbb; font-size: 12px;">Your Daily Design Muse 🧠✨</p>
+            </div>
+            
+        </div>
+        
+    </body>
+    </html>
+    """
     
     return body
 
@@ -340,7 +399,7 @@ def send_email(subject, body):
         msg["From"] = GMAIL_USER
         msg["To"] = RECIPIENT_EMAIL
         msg["Subject"] = subject
-        msg.attach(MIMEText(body, "plain"))
+        msg.attach(MIMEText(body, "html"))
         
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(GMAIL_USER, GMAIL_APP_PASSWORD)
