@@ -126,6 +126,10 @@ Imagine we're redesigning {concept} from scratch. You can think outside the box,
 **PART 3: Tongue-in-Cheek Tagline**
 End with a cheeky 1-liner that captures the vibe of your redesign.
 
+**PART 4: Self-Evaluation**
+Now be brutally honest: Is this redesign actually GOOD? Is it logical, impactful, and interesting? Or does it feel forced, generic, or not that novel?
+Answer with ONE word only: GOOD or WEAK
+
 Format your response as:
 ---PROBLEMS---
 [list here]
@@ -135,6 +139,9 @@ Format your response as:
 
 ---TAGLINE---
 [one-liner]
+
+---QUALITY---
+[GOOD or WEAK]
 """
     
     message = client.messages.create(
@@ -147,12 +154,22 @@ Format your response as:
     
     return message.content[0].text
 
+def markdown_to_html(text):
+    """Convert markdown formatting to HTML."""
+    import re
+    # Convert **bold** to <strong>bold</strong>
+    text = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', text)
+    # Convert *italic* to <em>italic</em>
+    text = re.sub(r'\*(.+?)\*', r'<em>\1</em>', text)
+    return text
+
 def parse_analysis(text):
     """Parse Claude's response into structured format."""
     sections = {
         "problems": "",
         "redesign": "",
-        "tagline": ""
+        "tagline": "",
+        "quality_assessment": ""
     }
     
     current_section = None
@@ -165,10 +182,17 @@ def parse_analysis(text):
             current_section = "redesign"
         elif "---TAGLINE---" in line:
             current_section = "tagline"
+        elif "---QUALITY---" in line:
+            current_section = "quality_assessment"
         elif current_section and line.strip():
             sections[current_section] += line + "\n"
     
-    return {k: v.strip() for k, v in sections.items()}
+    # Convert markdown to HTML for non-tagline sections
+    sections["problems"] = markdown_to_html(sections["problems"].strip())
+    sections["redesign"] = markdown_to_html(sections["redesign"].strip())
+    sections["quality_assessment"] = sections["quality_assessment"].strip()
+    
+    return sections
 
 # ============================================================================
 # EMAIL GENERATION & SENDING
@@ -349,16 +373,44 @@ def run_daily_generation():
         print("[ERROR] ANTHROPIC_API_KEY not set. Exiting.")
         return False
     
-    # Pick theme and generate a novel concept
+    # Pick theme and generate a novel concept with quality check
     theme = get_todays_theme()
     print(f"[INFO] Theme: {theme}")
-    print("[INFO] Generating a novel concept...")
-    concept = generate_concept(theme, API_KEY)
-    print(f"[INFO] Generated concept: {concept}")
     
-    # Generate analysis
-    print("[INFO] Calling Claude API for analysis...")
-    analysis = generate_concept_analysis(concept, theme)
+    max_attempts = 3
+    attempt = 0
+    analysis = None
+    concept = None
+    
+    while attempt < max_attempts:
+        attempt += 1
+        print(f"[INFO] Attempt {attempt}/{max_attempts}")
+        print("[INFO] Generating a novel concept...")
+        concept = generate_concept(theme, API_KEY)
+        print(f"[INFO] Generated concept: {concept}")
+        
+        # Generate analysis
+        print("[INFO] Analyzing concept...")
+        analysis = generate_concept_analysis(concept, theme)
+        
+        # Check quality assessment
+        parsed = parse_analysis(analysis)
+        quality = parsed.get("quality_assessment", "").strip().upper()
+        
+        if "GOOD" in quality:
+            print(f"[INFO] Quality assessment: GOOD ✓")
+            break
+        else:
+            print(f"[INFO] Quality assessment: WEAK - Trying another concept...")
+            if attempt < max_attempts:
+                continue
+            else:
+                print(f"[INFO] Max attempts reached. Sending this concept anyway.")
+                break
+    
+    if not analysis:
+        print("[ERROR] Failed to generate analysis")
+        return False
     
     # Save to history
     entry = add_to_history(concept, theme, analysis, "")
